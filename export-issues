@@ -1,0 +1,217 @@
+#!/usr/bin/env node
+
+//------------------------------
+// list-issues.js
+//
+// 2012-10-09, Jonas Colmsjö
+//
+// Copyright Gizur AB 2012
+//
+// Export the issues in a github repo to a CSV file
+//
+// dependencies: npm install jsdom xmlhttprequest jQuery optimist
+//
+// Using Google JavaScript Style Guide - http://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml
+//------------------------------
+
+
+
+(function(){
+
+// Includes
+// ---------
+
+var $       = require('jQuery');
+var helpers = require('./helpers.js');
+var argv    = require('optimist')
+                .usage('Usage: ./export-issues --user [github user] --password [github password] --owner [github owner of repo] --repo [github repo] --full')
+                .demand(['user','password', 'owner', 'repo'])
+                .argv;
+
+// set logging level
+logging.threshold  = logging.warn;
+
+
+// Globals
+// ----------
+
+var sep    = ';';
+var oauthToken;
+
+
+// Functions
+// ----------
+
+
+//
+// Equivalent of: curl -i -u colmsjo -d '{"scopes":["repo"]}' https://api.github.com/authorizations
+//
+
+function getOauthToken(user, password){
+
+    logDebug('getOauthToken: Starting list authorization...');
+
+      var request = $.ajax({
+
+        url: 'https://api.github.com/authorizations',
+        type: 'POST',
+
+        data: '{ "scopes": [ "repo" ], "note": "Created by list-issues.js"  }',
+
+        username: user,
+        password: password,
+
+        success: function(data){
+            logDebug('getOauthToken: Yea, it worked...' + JSON.stringify(data) );
+            oauthToken = data;
+        },
+
+        error: function(data){
+            logError('getOauthToken: Shit hit the fan...' + JSON.stringify(data));
+
+        }
+    });
+
+    return request;
+        
+}
+
+
+//
+// List issues for the authenticated user
+// Equivalent of: curl https://api.github.com/issues?access_token=OAUTH-TOKEN
+// 
+
+function listMyIssues(){
+
+    logDebug('listMyIssues: Starting getting my issues for...');
+    log( ['comments', 'title', 'state', 'body', 'id' ].join(sep) );
+
+      var request = $.ajax({
+
+        url: 'https://api.github.com/issues?access_token=' + oauthToken.token,
+        type: 'GET',
+
+        success: function(data, textStatus, jqXHR){
+            logDebug('listMyIssues: Yea, it worked...' + textStatus + ' - ' + JSON.stringify(data) );
+
+            $.each( data, function(index, value) {
+                log( [value.comments, value.title, value.state, value.body, value.id ].join(sep) );
+            });
+        },
+
+        error: function(data){
+            logError('listMyIssues: Shit hit the fan...' + JSON.stringify(data));
+
+        }
+
+    });
+
+    return request;
+
+}
+
+
+//
+// List issues for a repo
+//
+
+function listRepoIssues(owner, repo){
+
+    logDebug('listRepoIssues: Starting getting issues for ' + owner + '/' + repo + ' ...');
+
+    (argv.full) ? log( ['id' , 'title', 'state', 'created by', 'assigned to', 'milestone', 'labels', 'comments', 'body'].join(sep) ) :
+                  log( ['id' , 'title', 'state', 'created by', 'assigned to', 'milestone', 'labels', 'comments'].join(sep) ) ;
+ 
+    var request = $.ajax({
+
+        url: 'https://api.github.com/repos/' + owner + '/' + repo + '/issues?access_token=' + oauthToken.token,
+        type: 'GET',
+
+        success: function(data,textStatus, jqXHR){
+            logDebug('listRepoIssues: Yea, it worked...' + textStatus + ' - ' + JSON.stringify(data) );
+
+            $.each( data, function(index, value) {
+
+                // Manage json objects that not are mandatory
+                if(value.assignee == null)  value.assignee  = {login: 'not assgigned'};
+                if(value.milestone == null) value.milestone = {title: ''};
+
+                // create array of the labels
+                var labels = [];
+                $.each( value.labels, function(index, value) {
+                    labels.push(value.name);
+                });
+
+
+                // Print the result to stdout
+                (argv.full) ? log( [value.id , value.title, value.state, value.user.login, value.assignee.login, value.milestone.title, 
+                                    labels.join(','), value.comments, value.body].join(sep) ) :
+                              log( [value.id , value.title, value.state, value.user.login, value.assignee.login, value.milestone.title, 
+                                    labels.join(','), value.comments].join(sep) ) ;
+            });
+        },
+
+        error: function(data){
+            logErr('listRepoIssues: Shit hit the fan...' + JSON.stringify(data));
+
+        }
+
+    });
+
+    return request;
+
+}
+
+//
+// List public gists for a user
+//
+
+function listGists(user){
+
+    logDebug('listGists: Starting getting gists for colmsjo...');
+
+    var request = $.ajax({
+
+        // REST function to use
+        url: 'https://api.github.com/users/' + user + '/gists',
+        type: 'GET',
+
+        dataType: 'jsonp',
+
+        success: function(data){
+            logDebug('listGists: Yea, it worked...' + JSON.stringify(data) );
+        },
+
+        error: function(data){
+            logErr('listGists: Shit hit the fan...' + JSON.stringify(data) );
+
+        }
+
+    });
+
+    return request;
+
+}
+
+
+// Main
+// ------
+
+logDebug(argv.user + ":" + argv.password + ":" + argv.owner + ":" + argv.repo);
+
+logDebug(argv);
+
+$.when( getOauthToken(argv.user, argv.password) )
+    .then( function() {
+        logDebug('$.when.then...');
+
+        listRepoIssues(argv.owner, argv.repo);
+
+        //listMyIssues();
+    })
+    .fail( function() {
+        logErr('Failed getting oAuth token...');
+    })
+
+})();
