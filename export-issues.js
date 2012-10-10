@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
+// export-issues.js
 //------------------------------
-// list-issues.js
 //
 // 2012-10-09, Jonas Colmsjö
 //
@@ -12,6 +12,7 @@
 // dependencies: npm install jsdom xmlhttprequest jQuery optimist
 //
 // Using Google JavaScript Style Guide - http://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml
+//
 //------------------------------
 
 
@@ -19,7 +20,7 @@
 (function(){
 
 // Includes
-// ---------
+// ================
 
 var $       = require('jQuery');
 var helpers = require('./helpers.js');
@@ -28,21 +29,25 @@ var argv    = require('optimist')
                 .demand(['user','password', 'owner', 'repo'])
                 .argv;
 
+var linkNextPage = null;
+
 // set logging level
 logging.threshold  = logging.warn;
 
 
 // Globals
-// ----------
+//==============
 
 var sep    = ';';
 var oauthToken;
 
 
 // Functions
-// ----------
+//==============
 
 
+// getOauthToken
+//-------------------------------------------------------------------------------------------------
 //
 // Equivalent of: curl -i -u colmsjo -d '{"scopes":["repo"]}' https://api.github.com/authorizations
 //
@@ -67,7 +72,7 @@ function getOauthToken(user, password){
         },
 
         error: function(data){
-            logError('getOauthToken: Shit hit the fan...' + JSON.stringify(data));
+            logErr('getOauthToken: Shit hit the fan...' + JSON.stringify(data));
 
         }
     });
@@ -76,11 +81,54 @@ function getOauthToken(user, password){
         
 }
 
+//
+// Parse HTTP Headers in order to get the link for next page
+// ---------------------------------------------------------
+
+function parseHttpHeaders(jqXHR) {
+
+    // Parse the HTTP headers
+    // -------------------------------------------
+
+    // Split headers at newline into array
+    var headersArray = jqXHR.getAllResponseHeaders().split("\r\n");
+
+    // Crate JSON object to populate
+    var headersJSON = {};
+
+    // Iterate over HTTP headers
+    $.each( headersArray, function(index, value){
+
+        // Extract key and value for JSON object
+        var delIdx = value.indexOf(":");
+        var key    = value.substr(0, delIdx);
+        var value  = value.substr(delIdx+1, value.length);
+
+        // Update JSON object
+        headersJSON[key.trim()] = value.trim();
+    } );
+
+
+    // Parse the HTTP Link header
+    var linksArray = headersJSON.link != null ? headersJSON.link.split(",") : [];
+
+    // Create JSON object
+    var linksJSON = {};
+    $.each( linksArray, function(index, value){
+        var keyValue = value.split(";");
+        linksJSON[keyValue[1].trim()] = keyValue[0].trim().substr(1, keyValue[0].trim().length-2 );
+    });
+
+    linkNextPage = linksJSON['rel="next"'];
+
+    logDebug('parseHttpHeaders: metadata of response: ' + linksJSON['rel="next"'] );
+ }
+
 
 //
 // List issues for the authenticated user
-// Equivalent of: curl https://api.github.com/issues?access_token=OAUTH-TOKEN
-// 
+//-------------------------------------------------------------------------------
+// Equivalent of: curl -i https://api.github.com/issues?access_token=OAUTH-TOKEN
 
 function listMyIssues(){
 
@@ -98,10 +146,13 @@ function listMyIssues(){
             $.each( data, function(index, value) {
                 log( [value.comments, value.title, value.state, value.body, value.id ].join(sep) );
             });
-        },
+
+            parseHttpHeaders(jqXHR);
+
+       },
 
         error: function(data){
-            logError('listMyIssues: Shit hit the fan...' + JSON.stringify(data));
+            logErr('listMyIssues: Shit hit the fan...' + JSON.stringify(data));
 
         }
 
@@ -114,22 +165,30 @@ function listMyIssues(){
 
 //
 // List issues for a repo
-//
+//-----------------------
 
-function listRepoIssues(owner, repo){
-
-    logDebug('listRepoIssues: Starting getting issues for ' + owner + '/' + repo + ' ...');
+function listRepoIssuesHeader(){
 
     (argv.full) ? log( ['number', 'id' , 'title', 'state', 'created by', 'assigned to', 'created at', 'milestone', 'labels', 'comments', 'body'].join(sep) ) :
                   log( ['number', 'id' , 'title', 'state', 'created by', 'assigned to', 'created at', 'milestone', 'labels', 'comments'].join(sep) ) ;
- 
+
+}
+
+function listRepoIssues(repo_url){
+
+    logDebug('listRepoIssues: Starting getting issues for ' + repo_url + ' ...');
+
     var request = $.ajax({
 
-        url: 'https://api.github.com/repos/' + owner + '/' + repo + '/issues?access_token=' + oauthToken.token,
+        url: repo_url,
         type: 'GET',
 
-        success: function(data,textStatus, jqXHR){
+        success: function(data, textStatus, jqXHR){
             logDebug('listRepoIssues: Yea, it worked...' + textStatus + ' - ' + JSON.stringify(data) );
+
+
+            // Print the result
+            // ------------------
 
             $.each( data, function(index, value) {
 
@@ -150,6 +209,9 @@ function listRepoIssues(owner, repo){
                               log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.milestone.title, 
                                     labels.join(','), value.comments].join(sep) ) ;
             });
+
+            parseHttpHeaders(jqXHR);
+
         },
 
         error: function(data){
@@ -165,7 +227,7 @@ function listRepoIssues(owner, repo){
 
 //
 // List public gists for a user
-//
+//-----------------------------
 
 function listGists(user){
 
@@ -195,18 +257,29 @@ function listGists(user){
 }
 
 
+// recurse
+// =======
+
+function recurse() {
+    if(linkNextPage != null) {
+        $.when( listRepoIssues(linkNextPage) )
+            .then( function() { recurse(); } )
+            .fail( function() { logErr('Failed getting oAuth token...'); } )
+    }
+}
+
 // Main
-// ------
+//=========
 
-logDebug(argv.user + ":" + argv.password + ":" + argv.owner + ":" + argv.repo);
-
-logDebug(argv);
+listRepoIssuesHeader();
 
 $.when( getOauthToken(argv.user, argv.password) )
     .then( function() {
         logDebug('$.when.then...');
 
-        listRepoIssues(argv.owner, argv.repo);
+        linkNextPage = 'https://api.github.com/repos/' + argv.owner + '/' + argv.repo + '/issues?access_token=' + oauthToken.token; // + '&per_page=100';
+
+        recurse();
 
         //listMyIssues();
     })
