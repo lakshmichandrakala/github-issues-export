@@ -259,12 +259,14 @@ function listGists(user){
 
 // recurse
 // =======
+// Had to do some recursion in order to get fetch page by page synchronously 
+// with ajax (which is asynchronous)
 
 function recurse() {
     if(linkNextPage != null) {
         $.when( listRepoIssues(linkNextPage) )
             .then( function() { recurse(); } )
-            .fail( function() { logErr('Failed getting oAuth token...'); } )
+            .fail( function() { logErr('Failed getting next page...'); } )
     }
 }
 
