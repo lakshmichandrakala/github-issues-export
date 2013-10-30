@@ -218,7 +218,7 @@ function listRepoIssues(repo_url){
                 // Print the result to stdout
                 (argv.full) ? log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title, 
                                     labels.join(','), value.comments, value.body].join(sep) ) :
-                              log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, values.closed_at, value.milestone.title, 
+                              log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title, 
                                     labels.join(','), value.comments].join(sep) ) ;
             });
 
