@@ -290,6 +290,7 @@ function getCommentDetails(comment_url, callback) {
             $.each( data, function(index, value) {
                 // Manage json objects that not are mandatory
                 if(value.user != null) {
+                    value.body = value.body.replace(/(\r\n|\n|\r)/gm,"\t");
                     comment += value.user.login + ':' + value.body + '; ';
                 }
             });
