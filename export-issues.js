@@ -219,7 +219,7 @@ function listRepoIssues(repo_url){
                      getCommentDetails(value.url + '/comments?access_token=' + oauthToken.token, 
                         function(comment) { // Manage json objects that not are mandatory
                             // Print the result to stdout
-                            (argv.full) ? log( ['\"'+value.number+'\"', '\"'+value.id+'\"', '\"'+value.title+'\"', '\"'+value.state+'\"', '\"'+value.user.login+'\"', '\"'+value.assignee.login+'\"', '\"'+value.created_at+'\"', '\"'+value.updated_at+'\"', '\"'+value.closed_at+'\"', '\"'+value.milestone.title+'\"', 
+                            (argv.full) ? log( ['\"'+value.number+'\"', '\"'+value.title+'\"', '\"'+value.state+'\"', '\"'+value.user.login+'\"', '\"'+value.assignee.login+'\"', '\"'+value.created_at+'\"', '\"'+value.updated_at+'\"', '\"'+value.milestone.title+'\"', 
                                             '\"'+labels.join(',')+'\"', '\"'+value.comments+'\"', '\"'+comment+'\"', '\"'+value.body+'\"'].join(sep) ) :
                                         log( ['\"'+value.number+'\"', '\"'+value.id+'\"', '\"'+value.title+'\"', '\"'+value.state+'\"', '\"'+value.user.login+'\"', '\"'+value.assignee.login+'\"', '\"'+value.created_at+'\"', '\"'+value.updated_at+'\"', '\"'+value.closed_at+'\"', '\"'+value.milestone.title+'\"', 
                                             '\"'+labels.join(',')+'\"', '\"'+value.comments+'\"', '\"'+comment+'\"'].join(sep) ) ; 
