@@ -294,7 +294,6 @@ function getCommentDetails(comment_url, callback) {
                 }
             });
 
-            console.log('comment -- ' + comment);
             return callback(comment);
         },
 
