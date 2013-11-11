@@ -43,7 +43,7 @@ if (argv.bodynewlines == null) {
 // Globals
 //==============
 
-var sep    = ';';
+var sep    = ',';
 var oauthToken;
 
 
