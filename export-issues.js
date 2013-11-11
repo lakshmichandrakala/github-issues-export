@@ -177,8 +177,8 @@ function listMyIssues(){
 
 function listRepoIssuesHeader(){
 
-    (argv.full) ? log( ['Ticket', 'summary' , 'status', 'reporter', 'owner', 'Created', 'Modified', 'milestone', 'Keywords', 'comment', 'description'].join(sep) ) :
-                  log( ['number', 'id' , 'title', 'state', 'created by', 'assigned to', 'created at', 'updated at', 'closed at', 'milestone', 'labels', 'comments'].join(sep) ) ;
+    (argv.full) ? log( ['Ticket', 'summary' , 'status', 'reporter', 'owner', 'Created', 'Modified', 'milestone', 'Keywords', 'comment-count','comment', 'description'].join(sep) ) :
+                  log( ['number', 'id' , 'title', 'state', 'created by', 'assigned to', 'created at', 'updated at', 'closed at', 'milestone', 'labels', 'comment-count','comment'].join(sep) ) ;
 
 }
 
@@ -199,27 +199,33 @@ function listRepoIssues(repo_url){
             // ------------------
 
             $.each( data, function(index, value) {
+                             
+                if (value.comments == 0) {
+                    value.comments = '';
+                } else {
+                    if(value.assignee == null)  value.assignee  = {login: 'not assigned'};
+                    if(value.milestone == null) value.milestone = {title: ''};
 
-                // Manage json objects that not are mandatory
-                if(value.assignee == null)  value.assignee  = {login: 'not assigned'};
-                if(value.milestone == null) value.milestone = {title: ''};
+                    if (argv.bodynewlines === 'n') {
+                        value.body = value.body.replace(/(\r\n|\n|\r)/gm,"");    
+                    }
+                    
+                    // create array of the labels
+                    var labels = [];
+                    $.each( value.labels, function(index, value) {
+                        labels.push(value.name);
+                    });
 
-                if (argv.bodynewlines === 'n') {
-                    value.body = value.body.replace(/(\r\n|\n|\r)/gm,"");    
+                     getCommentDetails(value.url + '/comments?access_token=' + oauthToken.token, 
+                        function(comment) { // Manage json objects that not are mandatory
+                            // Print the result to stdout
+                            (argv.full) ? log( ['\"'+value.number+'\"', '\"'+value.id+'\"', '\"'+value.title+'\"', '\"'+value.state+'\"', '\"'+value.user.login+'\"', '\"'+value.assignee.login+'\"', '\"'+value.created_at+'\"', '\"'+value.updated_at+'\"', '\"'+value.closed_at+'\"', '\"'+value.milestone.title+'\"', 
+                                            '\"'+labels.join(',')+'\"', '\"'+value.comments+'\"', '\"'+comment+'\"', '\"'+value.body+'\"'].join(sep) ) :
+                                        log( ['\"'+value.number+'\"', '\"'+value.id+'\"', '\"'+value.title+'\"', '\"'+value.state+'\"', '\"'+value.user.login+'\"', '\"'+value.assignee.login+'\"', '\"'+value.created_at+'\"', '\"'+value.updated_at+'\"', '\"'+value.closed_at+'\"', '\"'+value.milestone.title+'\"', 
+                                            '\"'+labels.join(',')+'\"', '\"'+value.comments+'\"', '\"'+comment+'\"'].join(sep) ) ; 
+                        });
                 }
-                
-                // create array of the labels
-                var labels = [];
-                $.each( value.labels, function(index, value) {
-                    labels.push(value.name);
-                });
 
-
-                // Print the result to stdout
-                (argv.full) ? log( ['\"' +value.number+ '\"','\"' + value.id+ '\"','\"' + value.title+ '\"','\"' + value.state+ '\"','\"' + value.user.login+ '\"','\"' + value.assignee.login+ '\"','\"' + value.created_at+ '\"','\"' + value.updated_at+ '\"','\"' + value.closed_at+ '\"','\"' + value.milestone.title+ '\"', 
-                                    '\"' +labels.join(',')+ '\"','\"' + value.comments+ '\"','\"' + value.body+ '\"'].join(sep) ) :
-                              log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title, 
-                                    labels.join(','), value.comments].join(sep) ) ;
             });
 
             parseHttpHeaders(jqXHR);
@@ -236,6 +242,7 @@ function listRepoIssues(repo_url){
     return request;
 
 }
+
 
 //
 // List public gists for a user
@@ -266,6 +273,36 @@ function listGists(user){
 
     return request;
 
+}
+//
+// get comments for each issue and return the concatenated comment.
+//------------------------------------------------------------
+
+function getCommentDetails(comment_url, callback) {
+    $.ajax({
+        url: comment_url,
+        type: 'GET',
+        success: function(data, textStatus){
+            logDebug('listRepoIssueComments: Yeah, it worked...' + textStatus + ' - ' + JSON.stringify(data) );
+            
+            var comment = '';
+            // CONCATENATE THE COMMENTS
+            $.each( data, function(index, value) {
+                // Manage json objects that not are mandatory
+                if(value.user != null) {
+                    comment += value.user.login + ':' + value.body + '; ';
+                }
+            });
+
+            console.log('comment -- ' + comment);
+            return callback(comment);
+        },
+
+        error: function(data){
+            logErr('listRepoIssueComments: Shit hit the fan...' + JSON.stringify(data));
+            return callback('Could not retrieve comments;');
+        }
+    });
 }
 
 
