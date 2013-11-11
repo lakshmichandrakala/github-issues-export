@@ -177,7 +177,7 @@ function listMyIssues(){
 
 function listRepoIssuesHeader(){
 
-    (argv.full) ? log( ['number', 'id' , 'title', 'state', 'created by', 'assigned to', 'created at', 'updated at', 'closed at', 'milestone', 'labels', 'comments', 'body'].join(sep) ) :
+    (argv.full) ? log( ['Ticket', 'summary' , 'status', 'reporter', 'owner', 'Created', 'Modified', 'milestone', 'Keywords', 'comment', 'description'].join(sep) ) :
                   log( ['number', 'id' , 'title', 'state', 'created by', 'assigned to', 'created at', 'updated at', 'closed at', 'milestone', 'labels', 'comments'].join(sep) ) ;
 
 }
@@ -216,8 +216,8 @@ function listRepoIssues(repo_url){
 
 
                 // Print the result to stdout
-                (argv.full) ? log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title, 
-                                    labels.join(','), value.comments, value.body].join(sep) ) :
+                (argv.full) ? log( ['\"' +value.number+ '\"','\"' + value.id+ '\"','\"' + value.title+ '\"','\"' + value.state+ '\"','\"' + value.user.login+ '\"','\"' + value.assignee.login+ '\"','\"' + value.created_at+ '\"','\"' + value.updated_at+ '\"','\"' + value.closed_at+ '\"','\"' + value.milestone.title+ '\"', 
+                                    '\"' +labels.join(',')+ '\"','\"' + value.comments+ '\"','\"' + value.body+ '\"'].join(sep) ) :
                               log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title, 
                                     labels.join(','), value.comments].join(sep) ) ;
             });
